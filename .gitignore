@@ -3,3 +3,6 @@ gaussian.png
 gaussian2.png
 g3.png
 circle.png
+sobel_gaussian
+.vscode
+gitignore

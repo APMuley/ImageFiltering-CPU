@@ -14,12 +14,20 @@ int main() {
     }
 
     auto start = high_resolution_clock::now();
+  
+    // addition of sobel edge detection
+    int sobel_x[3][3] = {
+        {-1, 0, 1},
+        {-2, 0, 2},
+        {-1, 0, 1},
+    };
 
-    float kernel[3][3] = {
-        {1, 2, 1},
-        {2, 4, 2},
+    int sobel_y[3][3] = {
+        {-1, -2, -1},
+        {0, 0, 0},
         {1, 2, 1},
     };
+
 
     float kernelSum = 16;
     Mat padded;
@@ -30,15 +38,25 @@ int main() {
     for (int r = 1; r < padded.rows-1; r++) {
         for (int c = 1; c < padded.cols - 1; c++) {
             // loop through kernel
-            float sum = 0;
+            float Gx = 0, Gy = 0;
             for (int kr = -1; kr <= 1; kr++) {
                 for (int kc = -1; kc <= 1; kc++) {
                     int pixel = padded.at<uchar>(kr+r, kc+c);
-                    sum += pixel * kernel[kr+1][kc+1];
+                    Gx += pixel * sobel_x[kr+1][kc+1];
+                    Gy += pixel * sobel_y[kr+1][kc+1];
                 }
             }
+            // calcualte magnitude of gradient
+            float mag = sqrt(Gx*Gx + Gy*Gy);
 
-            output.at<uchar>(r-1, c-1) = (int) sum / kernelSum;
+            // setting threshold to 100
+            float threshold = 50.0f;
+            if (mag > threshold) mag = 255.0f;
+            else mag = 0.0f;
+
+            uchar pixel_output = (uchar)min(255.0f, mag);
+
+            output.at<uchar>(r-1, c-1) = pixel_output;
         }
     }
 
@@ -49,51 +67,6 @@ int main() {
     imwrite("gaussian.png", output);
 
     cout << "CPU time: " << duration.count() << " ms" << endl;
-
-    output = Mat::zeros(img.size(), img.type());
-
-    // Convoluted Gaussian using 2 1-D matrix
-
-    // Allocate temp as float; same size as original image
-    Mat temp = Mat::zeros(img.size(), CV_32F);
-
-    float kernel_c[3] = {1, 2, 1};
-    kernelSum = 4.0f; // sum of 1D kernel
-
-        // Row pass
-    for (int r = 1; r < padded.rows - 1; r++) {
-        float* tempRow = temp.ptr<float>(r-1);
-        uchar* paddedRow = padded.ptr<uchar>(r);
-        for (int c = 1; c < padded.cols - 1; c++) {
-            float sum = 0;
-            for (int k = -1; k <= 1; k++) {
-                sum += paddedRow[c + k] * kernel_c[k + 1];
-            }
-            tempRow[c-1] = sum / kernelSum;
-        }
-    }
-
-        // Column pass
-    for (int c = 1; c < padded.cols - 1; c++) {
-        for (int r = 1; r < padded.rows - 1; r++) {
-            float sum = 0;
-            for (int k = -1; k <= 1; k++) {
-                float* tempPtr = temp.ptr<float>(r + k); // row r+k-1
-                sum += tempPtr[c-1] * kernel_c[k + 1];
-            }
-            uchar* outputRow = output.ptr<uchar>(r-1);
-            outputRow[c-1] = (uchar)(sum / kernelSum + 0.5f);
-        }
-    }
-
-    end = high_resolution_clock::now();
-
-    duration = duration_cast<milliseconds>(end-start);
-
-    cout << "2 kernel approach: " << duration.count() << "ms" << endl;
-
-    imwrite("g3.png", output);
-
 
 
     return 0;
